@@ -1,10 +1,6 @@
 import cv2
 
 
-# ============================================================
-# COLORS
-# ============================================================
-
 BLACK = (8, 8, 8)
 WHITE = (245, 245, 245)
 GRAY = (145, 145, 145)
@@ -12,451 +8,125 @@ DARK_GRAY = (55, 55, 55)
 GREEN = (170, 220, 185)
 
 
-# ============================================================
-# TEXT
-# ============================================================
-
-def put_text(
-    image,
-    text: str,
-    position,
-    size: float = 0.45,
-    color=WHITE,
-    thickness: int = 1,
-):
+def put_text(image, text, position, size=0.45, color=WHITE, thickness=1):
     cv2.putText(
-        image,
-        text,
-        position,
+        image, text, position,
         cv2.FONT_HERSHEY_SIMPLEX,
-        size,
-        color,
-        thickness,
-        cv2.LINE_AA,
+        size, color, thickness, cv2.LINE_AA
     )
 
 
-# ============================================================
-# THIN LINE
-# ============================================================
-
-def line(
-    image,
-    x1: int,
-    y1: int,
-    x2: int,
-    y2: int,
-    color=WHITE,
-    thickness: int = 1,
-):
+def line(image, x1, y1, x2, y2, color=WHITE, thickness=1):
     cv2.line(
-        image,
-        (x1, y1),
-        (x2, y2),
-        color,
-        thickness,
-        cv2.LINE_AA,
+        image, (x1, y1), (x2, y2),
+        color, thickness, cv2.LINE_AA
     )
 
-
-# ============================================================
-# LANDMARKS
-# ============================================================
 
 def draw_landmarks(
     image,
     hand_landmarks,
     connections,
-    width: int,
-    height: int,
-    label: str | None = None,
+    width,
+    height,
+    label=None,
 ):
-    """
-    Минималистичная отрисовка руки:
-    только линии + точки.
-    """
-
-    points = []
-
-    for landmark in hand_landmarks:
-        x = int(landmark.x * width)
-        y = int(landmark.y * height)
-
-        points.append((x, y))
-
-    # --------------------------------------------------------
-    # HAND SKELETON
-    # --------------------------------------------------------
+    points = [
+        (int(p.x * width), int(p.y * height))
+        for p in hand_landmarks
+    ]
 
     for start, end in connections:
+        if start < len(points) and end < len(points):
+            line(
+                image,
+                *points[start],
+                *points[end],
+                WHITE,
+                2,
+            )
 
-        if start >= len(points) or end >= len(points):
-            continue
+    for i, point in enumerate(points):
+        radius = 5 if i == 0 else 4
 
-        cv2.line(
-            image,
-            points[start],
-            points[end],
-            WHITE,
-            2,
-            cv2.LINE_AA,
-        )
-
-    # --------------------------------------------------------
-    # LANDMARK POINTS
-    # --------------------------------------------------------
-
-    for index, point in enumerate(points):
-
-        # Большая точка для wrist
-        if index == 0:
-            radius = 5
-        else:
-            radius = 4
-
-        cv2.circle(
-            image,
-            point,
-            radius,
-            BLACK,
-            -1,
-            cv2.LINE_AA,
-        )
-
-        cv2.circle(
-            image,
-            point,
-            radius,
-            WHITE,
-            1,
-            cv2.LINE_AA,
-        )
+        cv2.circle(image, point, radius, BLACK, -1, cv2.LINE_AA)
+        cv2.circle(image, point, radius, WHITE, 1, cv2.LINE_AA)
 
 
-# ============================================================
-# HEADER
-# ============================================================
+def draw_header(image, width):
+    line(image, 28, 25, 28, 62)
 
-def draw_header(
-    image,
-    width: int,
-    height: int,
-):
-    """
-    Очень минимальный header.
-    """
+    put_text(image, "HAND TRACKER", (40, 43), 0.55)
+    put_text(image, "COMPUTER VISION", (40, 60), 0.28, GRAY)
 
-    # маленькая вертикальная линия
-    line(
-        image,
-        28,
-        25,
-        28,
-        62,
-        WHITE,
-        1,
-    )
-
-    put_text(
-        image,
-        "HAND TRACKER",
-        (40, 43),
-        0.55,
-        WHITE,
-        1,
-    )
-
-    put_text(
-        image,
-        "COMPUTER VISION",
-        (40, 60),
-        0.28,
-        GRAY,
-        1,
-    )
-
-    # LIVE
-
-    live_x = width - 85
-
-    cv2.circle(
-        image,
-        (live_x, 34),
-        3,
-        GREEN,
-        -1,
-        cv2.LINE_AA,
-    )
-
-    put_text(
-        image,
-        "LIVE",
-        (live_x + 10, 39),
-        0.32,
-        GRAY,
-        1,
-    )
+    x = width - 85
+    cv2.circle(image, (x, 34), 3, GREEN, -1, cv2.LINE_AA)
+    put_text(image, "LIVE", (x + 10, 39), 0.32, GRAY)
 
 
-# ============================================================
-# TOP INFORMATION
-# ============================================================
-
-def draw_info(
-    image,
-    fps: float,
-    hands_count: int,
-    handedness: list[str],
-):
-    """
-    Минимальная информация сверху.
-    """
-
-    height, width = image.shape[:2]
-
+def draw_info(image, fps, hands_count, handedness):
     y = 88
 
-    # FPS
+    put_text(image, f"{fps:.0f} FPS", (30, y), 0.32, GRAY)
+    line(image, 92, y - 13, 92, y + 3, DARK_GRAY)
 
-    put_text(
-        image,
-        f"{fps:.0f} FPS",
-        (30, y),
-        0.32,
-        GRAY,
-        1,
-    )
-
-    # separator
-
-    line(
-        image,
-        92,
-        y - 13,
-        92,
-        y + 3,
-        DARK_GRAY,
-    )
-
-    # hands
-
-    hand_text = (
-        f"{hands_count} HAND"
-        if hands_count == 1
-        else f"{hands_count} HANDS"
-    )
-
-    put_text(
-        image,
-        hand_text,
-        (108, y),
-        0.32,
-        GRAY,
-        1,
-    )
-
-    # Handedness
+    hands = f"{hands_count} HAND" if hands_count == 1 else f"{hands_count} HANDS"
+    put_text(image, hands, (108, y), 0.32, GRAY)
 
     if handedness:
-
-        separator_x = 205
-
-        line(
-            image,
-            separator_x,
-            y - 13,
-            separator_x,
-            y + 3,
-            DARK_GRAY,
-        )
-
-        labels = " / ".join(
-            label.upper()
-            for label in handedness
-        )
-
-        put_text(
-            image,
-            labels,
-            (220, y),
-            0.32,
-            GRAY,
-            1,
-        )
+        line(image, 205, y - 13, 205, y + 3, DARK_GRAY)
+        labels = " / ".join(x.upper() for x in handedness)
+        put_text(image, labels, (220, y), 0.32, GRAY)
 
 
-# ============================================================
-# CORNER FRAME
-# ============================================================
-
-def draw_corner_frame(
-    image,
-):
-    """
-    Очень тонкие угловые маркеры.
-    """
-
+def draw_corner_frame(image):
     height, width = image.shape[:2]
+    m, length = 18, 16
 
-    margin = 18
-    length = 16
+    corners = [
+        (m, m, 1, 1),
+        (width - m, m, -1, 1),
+        (m, height - m, 1, -1),
+        (width - m, height - m, -1, -1),
+    ]
 
-    # top left
-    line(
-        image,
-        margin,
-        margin,
-        margin + length,
-        margin,
-        DARK_GRAY,
-    )
-
-    line(
-        image,
-        margin,
-        margin,
-        margin,
-        margin + length,
-        DARK_GRAY,
-    )
-
-    # top right
-    line(
-        image,
-        width - margin,
-        margin,
-        width - margin - length,
-        margin,
-        DARK_GRAY,
-    )
-
-    line(
-        image,
-        width - margin,
-        margin,
-        width - margin,
-        margin + length,
-        DARK_GRAY,
-    )
-
-    # bottom left
-    line(
-        image,
-        margin,
-        height - margin,
-        margin + length,
-        height - margin,
-        DARK_GRAY,
-    )
-
-    line(
-        image,
-        margin,
-        height - margin,
-        margin,
-        height - margin - length,
-        DARK_GRAY,
-    )
-
-    # bottom right
-    line(
-        image,
-        width - margin,
-        height - margin,
-        width - margin - length,
-        height - margin,
-        DARK_GRAY,
-    )
-
-    line(
-        image,
-        width - margin,
-        height - margin,
-        width - margin,
-        height - margin - length,
-        DARK_GRAY,
-    )
+    for x, y, dx, dy in corners:
+        line(image, x, y, x + dx * length, y, DARK_GRAY)
+        line(image, x, y, x, y + dy * length, DARK_GRAY)
 
 
-# ============================================================
-# BOTTOM INFO
-# ============================================================
-
-def draw_bottom(
-    image,
-    mirror: bool,
-):
-    """
-    Минимальная нижняя строка.
-    """
-
+def draw_bottom(image, mirror):
     height, width = image.shape[:2]
-
     y = height - 28
 
-    # left
+    state = "ON" if mirror else "OFF"
+    put_text(image, f"M MIRROR {state}", (30, y), 0.30, GRAY)
 
-    mirror_state = "ON" if mirror else "OFF"
-
-    put_text(
-        image,
-        f"M MIRROR {mirror_state}",
-        (30, y),
-        0.30,
-        GRAY,
-        1,
-    )
-
-    # right
-
-    quit_text = "Q QUIT"
-
-    text_size = cv2.getTextSize(
-        quit_text,
+    text = "Q QUIT"
+    size = cv2.getTextSize(
+        text,
         cv2.FONT_HERSHEY_SIMPLEX,
         0.30,
         1,
     )[0]
 
-    put_text(
-        image,
-        quit_text,
-        (width - text_size[0] - 30, y),
-        0.30,
-        GRAY,
-        1,
-    )
+    put_text(image, text, (width - size[0] - 30, y), 0.30, GRAY)
 
 
-# ============================================================
-# DETECTION STATUS
-# ============================================================
-
-def draw_detection_status(
-    image,
-    hands_count: int,
-):
-    """
-    Небольшой индикатор состояния.
-    """
-
+def draw_detection_status(image, hands_count):
     height, width = image.shape[:2]
 
-    if hands_count > 0:
-        status = "TRACKING"
-        color = WHITE
-    else:
-        status = "SEARCHING"
-        color = GRAY
+    status = "TRACKING" if hands_count else "SEARCHING"
+    color = WHITE if hands_count else GRAY
 
-    text_size = cv2.getTextSize(
+    size = cv2.getTextSize(
         status,
         cv2.FONT_HERSHEY_SIMPLEX,
         0.30,
         1,
     )[0]
 
-    x = width - text_size[0] - 30
+    x = width - size[0] - 30
     y = height - 52
 
     cv2.circle(
@@ -468,63 +138,21 @@ def draw_detection_status(
         cv2.LINE_AA,
     )
 
-    put_text(
-        image,
-        status,
-        (x, y),
-        0.30,
-        color,
-        1,
-    )
+    put_text(image, status, (x, y), 0.30, color)
 
-
-# ============================================================
-# MAIN INTERFACE
-# ============================================================
 
 def draw_interface(
     image,
-    fps: float,
-    mirror: bool,
-    hands_count: int,
-    handedness: list[str],
-    mode: int = 4,
+    fps,
+    mirror,
+    hands_count,
+    handedness,
+    mode=4,
 ):
-    """
-    Полностью минималистичный CV dashboard.
-
-    mode оставлен в сигнатуре для совместимости
-    с main.py, но больше нигде не используется.
-    """
-
     height, width = image.shape[:2]
 
-    # тонкие угловые маркеры
     draw_corner_frame(image)
-
-    # header
-    draw_header(
-        image,
-        width,
-        height,
-    )
-
-    # metrics
-    draw_info(
-        image,
-        fps,
-        hands_count,
-        handedness,
-    )
-
-    # status
-    draw_detection_status(
-        image,
-        hands_count,
-    )
-
-    # bottom
-    draw_bottom(
-        image,
-        mirror,
-    )
+    draw_header(image, width)
+    draw_info(image, fps, hands_count, handedness)
+    draw_detection_status(image, hands_count)
+    draw_bottom(image, mirror)
